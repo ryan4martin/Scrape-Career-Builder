@@ -1,3 +1,8 @@
+#---
+#title: "Function to scrape CareerBuilder job postings"
+#author: "Ryan Martin"
+#---
+
 library(tidyverse)
 library(rvest)
 library(furrr)
