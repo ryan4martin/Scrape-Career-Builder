@@ -8,8 +8,9 @@ library(rvest)
 library(furrr)
 
 #Search terms for Career Builder consists of a character string
-search_term <- c('Data analyst', 'Data scientist', 'Business analyst', 'Consultant')
+search_term <- c('Data analyst', 'Data scientist', 'Business analyst')
 locations <- c('Montreal', 'Toronto')
+
 
 job_listings <- scrape_careerbuilder(search_term = search_term, locations = locations)
 
