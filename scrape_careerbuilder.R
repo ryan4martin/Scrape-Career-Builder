@@ -16,10 +16,13 @@ job_listings <- scrape_careerbuilder(search_term = search_term, locations = loca
 #Function to scrape careerbuilder website
 scrape_careerbuilder <-  function(search_term, locations) {
   #Use furrr to map functions in parallel
+  plan(multisession)
+  
+  #name search_term vector
   names(search_term) <- search_term
-  plan(multiprocess)
+  
   #Map over search terms and row bind results 
-  combined_listing <- future_map_dfr(.x = search_term, .id = names(search_term), .progress = T, .f = function(x){
+  combined_listing <- future_map_dfr(.x = search_term, .id = 'search_term', .progress = T, .f = function(x){
     #Change spaces to + in search term
     search_term <- map_chr(x, function(a) gsub(" ", "+", a))
     
