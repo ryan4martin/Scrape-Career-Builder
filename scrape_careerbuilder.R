@@ -2,19 +2,19 @@ library(tidyverse)
 library(rvest)
 library(furrr)
 
-
 #Search terms for Career Builder consists of a character string
 search_term <- c('Data analyst', 'Data scientist', 'Business analyst', 'Consultant')
 locations <- c('Montreal', 'Toronto')
 
-#Narrow search to include cities of interest
-job_listings <- careerbuilding(search_term = search_term, locations = locations)
+job_listings <- scrape_careerbuilder(search_term = search_term, locations = locations)
 
-careerbuilding <-  function(search_term, locations) {
+#Function to scrape careerbuilder website
+scrape_careerbuilder <-  function(search_term, locations) {
   #Use furrr to map functions in parallel
+  names(search_term) <- search_term
   plan(multiprocess)
   #Map over search terms and row bind results 
-  combined_listing <- future_map_dfr(.x = search_term, .id = search_term, .progress = T, .f = function(x){
+  combined_listing <- future_map_dfr(.x = search_term, .id = names(search_term), .progress = T, .f = function(x){
     #Change spaces to + in search term
     search_term <- map_chr(x, function(a) gsub(" ", "+", a))
     
