@@ -8,28 +8,22 @@ library(rvest)
 library(furrr)
 
 #Search terms for Career Builder consists of a character string
-search_term <- c('Data analyst', 'Data scientist', 'Business analyst')
-locations <- c('Montreal', 'Toronto')
-
+search_term <- c('Data analyst', 'Data Scientist', 'Business Analyst')
+locations <- c('Toronto', 'Vancouver', 'Montreal')
 
 job_listings <- scrape_careerbuilder(search_term = search_term, locations = locations)
 
 #Function to scrape careerbuilder website
 scrape_careerbuilder <-  function(search_term, locations) {
-  #Use furrr to map functions in parallel
-  plan(multisession)
-  
-  #name search_term vector
-  names(search_term) <- search_term
-  
+
   #Map over search terms and row bind results 
-  combined_listing <- future_map_dfr(.x = search_term, .id = 'search_term', .progress = T, .f = function(x){
+  combined_listing <- map_dfr(.x = search_term, .f = function(x){
     #Change spaces to + in search term
     search_term <- map_chr(x, function(a) gsub(" ", "+", a))
     
     #Number of pages to read for each location
-    locations <- locations
     pages <- c()
+    locations <- locations
     
     #Obtain header from first page of search
     for (i in seq_along(locations)) {
@@ -42,6 +36,10 @@ scrape_careerbuilder <-  function(search_term, locations) {
       pages[i] <- ceiling(read.table(text = heading, fill = T)[[1]] / 20)
     }
     names(pages) <- locations
+    job_title <- list()
+    job_company <- list()
+    job_location <- list()
+    job_description <- list()
     
     for (i in seq_along(locations)) {
       #Create empty lists for each feature collected
@@ -52,7 +50,15 @@ scrape_careerbuilder <-  function(search_term, locations) {
       #Iterate through each location 
       for (a in 1:pages[locations[i]]) {
         url <-  paste0('https://www.careerbuilder.ca/search?q=', search_term, '&loc=', locations[i], '&loc=&pg=', a)
-        webpage <- read_html(url)
+        webpage <- tryCatch(read_html(url),
+                            warnings = function(w) 'NA',
+                            error = function(err) 'NA')
+        if(webpage[1] == 'NA'){
+          title[[a]] <- 'NA'
+          company_clean[[a]] <- 'NA'
+          location_clean[[a]] <- 'NA'
+          description_clean[[a]] <- 'NA'
+        } else {
         #Obtain job title from listing
         title[[a]] <- html_nodes(webpage, '.job-title') %>%
           html_text()
@@ -80,27 +86,27 @@ scrape_careerbuilder <-  function(search_term, locations) {
         #Obtain job description from listing
         description <- list()
         for(c in seq_along(title[[a]])) {
-          description[[c]] <- html_session(url) %>%
+          description[[c]] <- tryCatch(html_session(url) %>%
             follow_link(title[[a]][c]) %>%
             read_html() %>%
             html_nodes('p') %>%
-            html_text()
-          #Description is read in with each line a sw
+            html_text(), error = function(e) 'NA')
+          
+          #Description is read in with each line 
           description[[c]] <- paste(description[[c]], sep = ' ', collapse = ' ')
         }
+        
         #Store descriptions from this page in list of all descriptions
         description_clean[[a]] <- unlist(description)
-      }
+        }
+        
       #Put results from all the pages at a certain location into the same list
-      job_title <- list()
       job_title[[i]] <- title
-      job_company <- list()
       job_company[[i]] <- company_clean
-      job_location <- list()
       job_location[[i]] <- location_clean
-      job_description <- list()
       job_description[[i]] <- description_clean
-    }
+      }}
+    
     #Flatten lists containing job information from all the searchs 
     job_title <- unlist(job_title, recursive = T)
     job_company <- unlist(job_company, recursive = T)
@@ -108,7 +114,6 @@ scrape_careerbuilder <-  function(search_term, locations) {
     job_description <- unlist(job_description, recursive = T)
     
     #Combined the job listing information into a data.frame
-    combined_listing <- list()
     combined_listing <- pmap_dfr(list(job_title, job_company, job_location, job_description), 
                                  function(job_title, job_company, job_location, job_description) {
                                    as.data.frame(cbind(job_title, job_company, job_location, job_description)) 
